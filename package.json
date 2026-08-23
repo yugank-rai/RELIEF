@@ -1,0 +1,15 @@
+{
+  "name": "relief-workspace",
+  "version": "1.0.0",
+  "description": "DisasterOps Command Center (RELIEF) - Real-time Emergency Logistics & Information Exchange Framework",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:backend": "npm --prefix backend run build",
+    "build:frontend": "npm --prefix frontend run build",
+    "test": "npm --prefix backend test"
+  },
+  "keywords": ["disaster-management", "relief", "command-center", "hackathon"],
+  "author": "Team YuVaRA (Yugank Rai & Vaibhav Rawat)",
+  "license": "ISC"
+}

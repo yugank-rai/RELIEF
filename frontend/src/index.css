@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-dark-base text-slate-200 font-sans antialiased selection:bg-brand-red selection:text-white;
+    min-height: 100vh;
+  }
+}
+
+/* Custom Scrollbar for sleek command center UI */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0E14;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #20293C;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2D374D;
+}
+
+/* Leaflet Dark Map Custom Filter */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #0B0E14 !important;
+  font-family: inherit;
+}
+
+.leaflet-tile {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7) !important;
+}
+
+.leaflet-control-zoom a {
+  background: #111622 !important;
+  color: #94A3B8 !important;
+  border-color: #20293C !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: #1F293D !important;
+  color: #FFFFFF !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #161C2A !important;
+  color: #F1F5F9 !important;
+  border: 1px solid #2D374D !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.7) !important;
+}
+
+.leaflet-popup-tip {
+  background: #161C2A !important;
+}
+
+/* Glowing Pulsing Markers */
+.pin-glow-critical {
+  box-shadow: 0 0 14px 4px rgba(248, 81, 73, 0.7);
+}
+
+.pin-glow-high {
+  box-shadow: 0 0 14px 4px rgba(210, 153, 34, 0.7);
+}
+
+.pin-glow-moderate {
+  box-shadow: 0 0 14px 4px rgba(88, 166, 255, 0.7);
+}
+
+.pin-glow-nominal {
+  box-shadow: 0 0 14px 4px rgba(63, 185, 80, 0.7);
+}
+
+/* Grid Radar Background Pattern */
+.bg-grid-pattern {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(32, 41, 60, 0.4) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(32, 41, 60, 0.4) 1px, transparent 1px);
+}
