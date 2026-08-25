@@ -1,14 +1,24 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import type { UserProfile } from '../lib/api';
+import type { UserProfile, UserRole } from '../lib/api';
 
 interface AuthContextType {
   user: UserProfile | null;
   token: string | null;
   isAuthenticated: boolean;
+  isAnonymous: boolean;
   isLoading: boolean;
   login: (email: string, pass: string) => Promise<void>;
-  quickSwitchRole: (role: 'citizen' | 'volunteer' | 'authority' | 'resource_manager') => Promise<void>;
+  register: (data: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    role: UserRole;
+    skills?: string[];
+  }) => Promise<void>;
+  quickLogin: (role: UserRole) => Promise<void>;
+  enableAnonymousMode: () => void;
   logout: () => void;
 }
 
@@ -17,48 +27,81 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('relief_token'));
+  const [isAnonymous, setIsAnonymous] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Initialize or quick-login as authority by default for instant command center preview
+  // Restore session from token if present
   useEffect(() => {
-    async function initAuth() {
+    async function restoreSession() {
       if (token) {
         try {
           const res = await api.auth.getMe();
           setUser(res.user);
         } catch {
-          // Token invalid, do quick-login as authority
-          await quickSwitchRole('authority');
+          // Token expired or invalid, clear it
+          setUser(null);
+          setToken(null);
+          localStorage.removeItem('relief_token');
         }
-      } else {
-        await quickSwitchRole('authority');
       }
       setIsLoading(false);
     }
-    initAuth();
+    restoreSession();
   }, []);
 
   const login = async (email: string, pass: string) => {
     const res = await api.auth.login({ email, password: pass });
     setToken(res.token);
     setUser(res.user);
+    setIsAnonymous(false);
     localStorage.setItem('relief_token', res.token);
   };
 
-  const quickSwitchRole = async (role: 'citizen' | 'volunteer' | 'authority' | 'resource_manager') => {
+  const register = async (data: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    role: UserRole;
+    skills?: string[];
+  }) => {
+    const res = await api.auth.register(data);
+    setToken(res.token);
+    setUser(res.user);
+    setIsAnonymous(false);
+    localStorage.setItem('relief_token', res.token);
+  };
+
+  const quickLogin = async (role: UserRole) => {
     try {
       const res = await api.auth.quickLogin(role);
       setToken(res.token);
       setUser(res.user);
+      setIsAnonymous(false);
       localStorage.setItem('relief_token', res.token);
     } catch (err) {
-      console.warn('Quick login failed:', err);
+      console.error('Quick login failed:', err);
+      throw err;
     }
+  };
+
+  const enableAnonymousMode = () => {
+    setUser({
+      id: 0,
+      name: 'Anonymous Citizen',
+      email: 'citizen@emergency.local',
+      phone: '',
+      role: 'citizen',
+      skills: [],
+      status: 'available',
+    });
+    setIsAnonymous(true);
   };
 
   const logout = () => {
     setUser(null);
     setToken(null);
+    setIsAnonymous(false);
     localStorage.removeItem('relief_token');
   };
 
@@ -68,9 +111,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         token,
         isAuthenticated: !!user,
+        isAnonymous,
         isLoading,
         login,
-        quickSwitchRole,
+        register,
+        quickLogin,
+        enableAnonymousMode,
         logout,
       }}
     >

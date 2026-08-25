@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthPortal } from './pages/AuthPortal';
 import { Navbar } from './components/Navbar';
 import type { TabType } from './components/Navbar';
 import { LiveAlertTicker } from './components/LiveAlertTicker';
 import { PublicDashboard } from './pages/PublicDashboard';
 import { ResponseDashboard } from './pages/ResponseDashboard';
+import { VolunteerDashboard } from './pages/VolunteerDashboard';
 import { ReportThreat } from './pages/ReportThreat';
 import { ResourcesAndShelters } from './pages/ResourcesAndShelters';
 import { DisasterDetails } from './pages/DisasterDetails';
@@ -14,12 +16,24 @@ import type { Incident } from './lib/api';
 import { AlertTriangle, Radio } from 'lucide-react';
 
 const MainApp: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated, isAnonymous, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('incidents');
   const [selectedIncidentForDetail, setSelectedIncidentForDetail] = useState<Incident | null>(null);
+  const [authorityViewMode, setAuthorityViewMode] = useState<'public' | 'command'>('command');
 
-  // If user role is Authority, show Emergency Response Command when 'incidents' is selected, or let them toggle
-  const [authorityViewMode, setAuthorityViewMode] = useState<'public' | 'command'>('public');
+  // Update default tab when role changes
+  useEffect(() => {
+    if (user?.role === 'volunteer') {
+      setActiveTab('volunteer-tasks');
+    } else if (user?.role === 'authority') {
+      setActiveTab('incidents');
+      setAuthorityViewMode('command');
+    } else if (user?.role === 'resource_manager') {
+      setActiveTab('resources');
+    } else {
+      setActiveTab('incidents');
+    }
+  }, [user?.role]);
 
   const handleSelectIncidentDetail = (incident: Incident) => {
     setSelectedIncidentForDetail(incident);
@@ -29,6 +43,23 @@ const MainApp: React.FC = () => {
   const handleOpenLiveMap = () => {
     setActiveTab('map');
   };
+
+  // Loading spinner while verifying credentials
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-dark-base text-slate-100 flex items-center justify-center font-mono text-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-3 h-3 rounded-full bg-brand-blue animate-ping" />
+          <span>INITIALIZING DISASTEROPS RELIEF SESSION...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // If user is not authenticated and not in anonymous mode, show the Auth Portal
+  if (!isAuthenticated && !isAnonymous) {
+    return <AuthPortal />;
+  }
 
   return (
     <div className="min-h-screen bg-dark-base text-slate-100 flex flex-col font-sans selection:bg-brand-red selection:text-white">
@@ -40,7 +71,7 @@ const MainApp: React.FC = () => {
         selectedIncidentCode={selectedIncidentForDetail?.code}
       />
 
-      {/* 2. Broadcast Live Alert Ticker (Matching Screenshots) */}
+      {/* 2. Broadcast Live Alert Ticker */}
       <LiveAlertTicker />
 
       {/* 3. Main Workspace Content Container */}
@@ -48,22 +79,12 @@ const MainApp: React.FC = () => {
         
         {/* Authority / Public Sub-toggle when on Incidents Tab */}
         {activeTab === 'incidents' && user?.role === 'authority' && (
-          <div className="mb-4 flex items-center justify-between bg-dark-surface border border-dark-border p-2.5 rounded-xl text-xs font-mono">
+          <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-dark-surface border border-dark-border p-2.5 rounded-xl text-xs font-mono">
             <div className="flex items-center gap-2 text-slate-400">
               <Radio className="w-4 h-4 text-brand-red animate-pulse" />
               <span>Authority Role Active: Switch Workspace View</span>
             </div>
             <div className="flex items-center gap-1 bg-dark-base p-1 rounded-lg border border-dark-borderLight">
-              <button
-                onClick={() => setAuthorityViewMode('public')}
-                className={`px-3 py-1 rounded text-xs font-bold transition-colors ${
-                  authorityViewMode === 'public'
-                    ? 'bg-brand-blue text-white shadow'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Public Radar View
-              </button>
               <button
                 onClick={() => setAuthorityViewMode('command')}
                 className={`px-3 py-1 rounded text-xs font-bold transition-colors ${
@@ -74,11 +95,25 @@ const MainApp: React.FC = () => {
               >
                 Triage & Dispatch Command
               </button>
+              <button
+                onClick={() => setAuthorityViewMode('public')}
+                className={`px-3 py-1 rounded text-xs font-bold transition-colors ${
+                  authorityViewMode === 'public'
+                    ? 'bg-brand-blue text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Public Radar View
+              </button>
             </div>
           </div>
         )}
 
         {/* Tab Routing */}
+        {activeTab === 'volunteer-tasks' && (
+          <VolunteerDashboard onSelectIncidentDetail={handleSelectIncidentDetail} />
+        )}
+
         {activeTab === 'incidents' && (
           authorityViewMode === 'command' && user?.role === 'authority' ? (
             <ResponseDashboard onSelectDisasterDetail={handleSelectIncidentDetail} />
@@ -119,7 +154,7 @@ const MainApp: React.FC = () => {
 
       </main>
 
-      {/* 4. Persistent Emergency Action Button on Mobile & Desktop */}
+      {/* 4. Persistent Emergency Action Button */}
       {activeTab !== 'report' && (
         <button
           onClick={() => setActiveTab('report')}
