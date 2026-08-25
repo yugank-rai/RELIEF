@@ -8,13 +8,21 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isAnonymous: boolean;
   isLoading: boolean;
-  login: (email: string, pass: string) => Promise<void>;
+  login: (email: string, pass: string, expectedPortal?: 'authority' | 'public') => Promise<void>;
   register: (data: {
     name: string;
     email: string;
     phone: string;
     password: string;
     role: UserRole;
+    authorityPasscode?: string;
+    skills?: string[];
+  }) => Promise<void>;
+  googleSignIn: (data: {
+    email: string;
+    name: string;
+    role: UserRole;
+    authorityPasscode?: string;
     skills?: string[];
   }) => Promise<void>;
   quickLogin: (role: UserRole) => Promise<void>;
@@ -49,8 +57,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     restoreSession();
   }, []);
 
-  const login = async (email: string, pass: string) => {
-    const res = await api.auth.login({ email, password: pass });
+  const login = async (email: string, pass: string, expectedPortal?: 'authority' | 'public') => {
+    const res = await api.auth.login({ email, password: pass, expectedPortal });
     setToken(res.token);
     setUser(res.user);
     setIsAnonymous(false);
@@ -63,9 +71,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     phone: string;
     password: string;
     role: UserRole;
+    authorityPasscode?: string;
     skills?: string[];
   }) => {
     const res = await api.auth.register(data);
+    setToken(res.token);
+    setUser(res.user);
+    setIsAnonymous(false);
+    localStorage.setItem('relief_token', res.token);
+  };
+
+  const googleSignIn = async (data: {
+    email: string;
+    name: string;
+    role: UserRole;
+    authorityPasscode?: string;
+    skills?: string[];
+  }) => {
+    const res = await api.auth.googleLogin(data);
     setToken(res.token);
     setUser(res.user);
     setIsAnonymous(false);
@@ -115,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login,
         register,
+        googleSignIn,
         quickLogin,
         enableAnonymousMode,
         logout,
