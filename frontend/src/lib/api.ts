@@ -110,7 +110,7 @@ export const api = {
   // Auth
   auth: {
     login: (body: any) => apiRequest<{ token: string; user: UserProfile }>('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
-    quickLogin: (role: string) => apiRequest<{ token: string; user: UserProfile }>('/auth/quick-login', { method: 'POST', body: JSON.stringify({ role }) }),
+    quickLogin: (role: string, authorityPasscode?: string) => apiRequest<{ token: string; user: UserProfile }>('/auth/quick-login', { method: 'POST', body: JSON.stringify({ role, authorityPasscode }) }),
     register: (body: any) => apiRequest<{ token: string; user: UserProfile }>('/auth/register', { method: 'POST', body: JSON.stringify(body) }),
     googleLogin: (body: any) => apiRequest<{ token: string; user: UserProfile }>('/auth/google', { method: 'POST', body: JSON.stringify(body) }),
     getMe: () => apiRequest<{ user: UserProfile }>('/auth/me'),

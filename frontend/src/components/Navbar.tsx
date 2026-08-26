@@ -14,7 +14,11 @@ import {
   ChevronDown,
   LogOut,
   User,
-  HeartHandshake
+  HeartHandshake,
+  Lock,
+  KeyRound,
+  ShieldCheck,
+  X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import type { UserRole } from '../lib/api';
@@ -42,6 +46,13 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, selecte
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [currentTime, setCurrentTime] = useState<string>('');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState<boolean>(false);
+
+  // Authority Elevation Modal state
+  const [showElevationModal, setShowElevationModal] = useState<boolean>(false);
+  const [targetElevationRole, setTargetElevationRole] = useState<'authority' | 'resource_manager'>('authority');
+  const [elevationPasscode, setElevationPasscode] = useState<string>('');
+  const [elevationError, setElevationError] = useState<string | null>(null);
+  const [isElevating, setIsElevating] = useState<boolean>(false);
 
   // Live clock
   useEffect(() => {
@@ -82,14 +93,29 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, selecte
     };
   }, []);
 
-  const roles: Array<{ key: UserRole; label: string; badge: string }> = [
-    { key: 'authority', label: 'Authority (Incident Commander)', badge: 'AUTHORITY' },
-    { key: 'volunteer', label: 'Volunteer (Responder)', badge: 'VOLUNTEER' },
-    { key: 'resource_manager', label: 'Resource Manager', badge: 'LOGISTICS' },
-    { key: 'citizen', label: 'Citizen (Public)', badge: 'CITIZEN' },
-  ];
-
   const currentRole = user?.role || 'citizen';
+  const isAuthorityUser = currentRole === 'authority' || currentRole === 'resource_manager';
+
+  const handleElevationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!elevationPasscode) {
+      setElevationError('Security passcode required for Authority elevation');
+      return;
+    }
+
+    setIsElevating(true);
+    setElevationError(null);
+    try {
+      await quickLogin(targetElevationRole, elevationPasscode);
+      setShowElevationModal(false);
+      setIsUserMenuOpen(false);
+      setElevationPasscode('');
+    } catch (err: any) {
+      setElevationError(err.message || 'Access Denied: Invalid Security Passcode');
+    } finally {
+      setIsElevating(false);
+    }
+  };
 
   return (
     <header className="bg-dark-surface border-b border-dark-border sticky top-0 z-50">
@@ -276,7 +302,11 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, selecte
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
               className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-dark-card border border-dark-borderLight text-xs font-medium text-slate-200 hover:bg-dark-hover transition-colors shadow-sm"
             >
-              <div className="w-6 h-6 rounded-lg bg-brand-blueDim text-brand-blue font-bold text-xs flex items-center justify-center border border-brand-blue/30">
+              <div className={`w-6 h-6 rounded-lg font-bold text-xs flex items-center justify-center border ${
+                isAuthorityUser 
+                  ? 'bg-brand-redDim text-brand-red border-brand-red/40' 
+                  : 'bg-brand-blueDim text-brand-blue border-brand-blue/30'
+              }`}>
                 {user?.name ? user.name.charAt(0).toUpperCase() : 'C'}
               </div>
 
@@ -284,7 +314,9 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, selecte
                 <span className="text-[11px] font-semibold text-white truncate max-w-[120px]">
                   {user?.name || 'Citizen'}
                 </span>
-                <span className="text-[9px] text-brand-blue font-mono uppercase font-bold">
+                <span className={`text-[9px] font-mono uppercase font-bold ${
+                  isAuthorityUser ? 'text-brand-red' : 'text-brand-blue'
+                }`}>
                   {user?.role || 'Citizen'}
                 </span>
               </div>
@@ -292,7 +324,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, selecte
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </button>
 
-            {/* Dropdown Menu */}
+            {/* Dropdown Menu (Strictly Guarded) */}
             {isUserMenuOpen && (
               <div className="absolute right-0 mt-2 w-72 bg-dark-card border border-dark-borderLight rounded-2xl shadow-2xl p-2.5 z-50 animate-in fade-in slide-in-from-top-2">
                 
@@ -301,37 +333,130 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, selecte
                   <div className="text-xs font-bold text-white truncate">{user?.name}</div>
                   <div className="text-[10px] font-mono text-slate-400 truncate">{user?.email || 'Public Citizen Session'}</div>
                   <div className="mt-1">
-                    <span className="text-[9px] font-mono px-2 py-0.5 rounded bg-brand-blueDim text-brand-blue border border-brand-blue/40 uppercase font-bold">
+                    <span className={`text-[9px] font-mono px-2 py-0.5 rounded border uppercase font-bold ${
+                      isAuthorityUser
+                        ? 'bg-brand-redDim text-brand-red border-brand-red/40'
+                        : 'bg-brand-blueDim text-brand-blue border-brand-blue/40'
+                    }`}>
                       {user?.role?.toUpperCase()} ACCESS
                     </span>
                   </div>
                 </div>
 
-                {/* Role Switcher Options (Matching Screenshot) */}
+                {/* Role Switcher Section */}
                 <div className="px-2 py-1 text-[10px] font-mono uppercase text-slate-400 font-bold mb-1">
-                  SWITCH ACTIVE ROLE (DEMO MODE)
+                  ROLE & CLEARANCE MANAGEMENT
                 </div>
 
                 <div className="space-y-1">
-                  {roles.map(r => (
-                    <button
-                      key={r.key}
-                      onClick={async () => {
-                        await quickLogin(r.key);
-                        setIsUserMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
-                        user?.role === r.key
-                          ? 'bg-brand-blueDim text-brand-blue font-semibold border border-brand-blue/30'
-                          : 'text-slate-300 hover:bg-dark-hover'
-                      }`}
-                    >
-                      <span>{r.label}</span>
-                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-dark-base border border-dark-border text-slate-400 font-bold">
-                        {r.badge}
-                      </span>
-                    </button>
-                  ))}
+                  
+                  {/* If user is already Authority or Resource Manager */}
+                  {isAuthorityUser ? (
+                    <>
+                      <button
+                        onClick={async () => {
+                          await quickLogin('authority', 'COMMAND-2026');
+                          setIsUserMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
+                          user?.role === 'authority'
+                            ? 'bg-brand-redDim text-brand-red font-semibold border border-brand-red/30'
+                            : 'text-slate-300 hover:bg-dark-hover'
+                        }`}
+                      >
+                        <span>Authority (Incident Commander)</span>
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-dark-base border border-dark-border text-slate-400 font-bold">
+                          COMMAND
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={async () => {
+                          await quickLogin('resource_manager', 'COMMAND-2026');
+                          setIsUserMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
+                          user?.role === 'resource_manager'
+                            ? 'bg-brand-amberDim text-brand-amber font-semibold border border-brand-amber/30'
+                            : 'text-slate-300 hover:bg-dark-hover'
+                        }`}
+                      >
+                        <span>Resource Manager</span>
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-dark-base border border-dark-border text-slate-400 font-bold">
+                          LOGISTICS
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={async () => {
+                          await quickLogin('citizen');
+                          setIsUserMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs text-slate-400 hover:text-white hover:bg-dark-hover flex items-center justify-between"
+                      >
+                        <span>Demote to Public Citizen View</span>
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-dark-base border border-dark-border text-slate-500 font-bold">
+                          PUBLIC
+                        </span>
+                      </button>
+                    </>
+                  ) : (
+                    /* If user is an ordinary citizen or volunteer */
+                    <>
+                      <button
+                        onClick={async () => {
+                          await quickLogin('citizen');
+                          setIsUserMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
+                          user?.role === 'citizen'
+                            ? 'bg-brand-blueDim text-brand-blue font-semibold border border-brand-blue/30'
+                            : 'text-slate-300 hover:bg-dark-hover'
+                        }`}
+                      >
+                        <span>Citizen (Public Reporter)</span>
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-dark-base border border-dark-border text-slate-400 font-bold">
+                          CITIZEN
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={async () => {
+                          await quickLogin('volunteer');
+                          setIsUserMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
+                          user?.role === 'volunteer'
+                            ? 'bg-brand-greenDim text-brand-green font-semibold border border-brand-green/30'
+                            : 'text-slate-300 hover:bg-dark-hover'
+                        }`}
+                      >
+                        <span>Volunteer (Field Responder)</span>
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-dark-base border border-dark-border text-slate-400 font-bold">
+                          VOLUNTEER
+                        </span>
+                      </button>
+
+                      {/* Locked Authority Elevation Option */}
+                      <button
+                        onClick={() => {
+                          setTargetElevationRole('authority');
+                          setShowElevationModal(true);
+                          setIsUserMenuOpen(false);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-xl text-xs bg-dark-base border border-brand-red/30 text-brand-red hover:bg-brand-redDim/50 flex items-center justify-between transition-colors mt-1"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5 text-brand-red" />
+                          <span className="font-semibold">Elevate to Authority Command</span>
+                        </div>
+                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-brand-red text-white font-bold">
+                          LOCKED
+                        </span>
+                      </button>
+                    </>
+                  )}
+
                 </div>
 
                 {/* Log Out Button */}
@@ -399,6 +524,91 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, selecte
           Shelters
         </button>
       </div>
+
+      {/* Authority Security Passcode Elevation Modal */}
+      {showElevationModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-dark-surface border border-brand-red/50 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 font-mono animate-in fade-in zoom-in-95 relative">
+            
+            <button
+              onClick={() => { setShowElevationModal(false); setElevationError(null); }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-2.5 text-white font-bold text-sm">
+              <div className="w-8 h-8 rounded-lg bg-brand-redDim border border-brand-red/40 text-brand-red flex items-center justify-center">
+                <Lock className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold">Authority Security Verification</h4>
+                <div className="text-[10px] text-slate-400">Restricted Emergency Command Gateway</div>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 font-sans leading-relaxed">
+              Standard citizens and field volunteers cannot switch to Authority Command without entering an authorized security passcode or logging into an official account.
+            </p>
+
+            {elevationError && (
+              <div className="p-3 rounded-xl bg-brand-redDim border border-brand-red/40 text-brand-red text-xs">
+                {elevationError}
+              </div>
+            )}
+
+            <form onSubmit={handleElevationSubmit} className="space-y-3">
+              <div>
+                <label className="text-[11px] text-slate-400 block mb-1 font-bold">
+                  Enter Command Passcode:
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••"
+                    value={elevationPasscode}
+                    onChange={e => setElevationPasscode(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-dark-base border border-dark-borderLight rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-red"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-dark-base p-2.5 rounded-lg border border-dark-border text-[10px] text-slate-400 flex items-center justify-between">
+                <span>Demo Passcode: <strong className="text-white">COMMAND-2026</strong></span>
+                <button
+                  type="button"
+                  onClick={() => setElevationPasscode('COMMAND-2026')}
+                  className="text-brand-blue hover:underline"
+                >
+                  Autofill
+                </button>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowElevationModal(false); setElevationError(null); }}
+                  className="px-4 py-2 bg-dark-base hover:bg-dark-hover text-slate-300 rounded-lg text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isElevating}
+                  className="px-4 py-2 bg-brand-red hover:bg-brand-red/90 text-white rounded-lg text-xs font-bold shadow-lg shadow-brand-red/20 flex items-center gap-1.5"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>{isElevating ? 'Verifying...' : 'Authenticate Clearance'}</span>
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
+
     </header>
   );
 };

@@ -13,11 +13,11 @@ import { DisasterDetails } from './pages/DisasterDetails';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { LiveMapScreen } from './pages/LiveMapScreen';
 import type { Incident } from './lib/api';
-import { AlertTriangle, Radio, ShieldAlert, LogIn } from 'lucide-react';
+import { AlertTriangle, Radio, ShieldAlert, LogIn, Lock } from 'lucide-react';
 
-const AccessDeniedCard: React.FC<{ requiredRole: string; onSwitchToAuthority: () => void }> = ({ 
+const AccessDeniedCard: React.FC<{ requiredRole: string; onReturnToPortal: () => void }> = ({ 
   requiredRole, 
-  onSwitchToAuthority 
+  onReturnToPortal 
 }) => (
   <div className="bg-dark-surface border border-brand-red/40 rounded-2xl p-8 max-w-xl mx-auto text-center space-y-4 shadow-2xl my-12">
     <div className="w-12 h-12 rounded-2xl bg-brand-redDim border border-brand-red/40 text-brand-red flex items-center justify-center mx-auto shadow-lg shadow-brand-red/20">
@@ -25,24 +25,24 @@ const AccessDeniedCard: React.FC<{ requiredRole: string; onSwitchToAuthority: ()
     </div>
     <h3 className="text-lg font-bold text-white">403 Forbidden: Restricted Command Area</h3>
     <p className="text-xs text-slate-300 leading-relaxed font-sans">
-      This operational module requires <strong className="text-brand-red">{requiredRole.toUpperCase()}</strong> clearance. Citizens and field volunteers cannot access official triage, inventory modifications, or administrative audit logs without authorization.
+      This operational module requires <strong className="text-brand-red">{requiredRole.toUpperCase()}</strong> clearance. Ordinary citizens and field volunteers cannot access official triage, inventory modifications, or administrative audit registries without authorization.
     </p>
     <div className="text-[11px] font-mono text-slate-400 bg-dark-base p-3 rounded-xl border border-dark-border space-y-1">
-      <div>Security Enforcement: <strong>Active RBAC Token Guard</strong></div>
-      <div className="text-[10px] text-slate-500">Sign in with official command credentials (Passcode: COMMAND-2026).</div>
+      <div>Security Enforcement: <strong>Strict JWT Role Verification Active</strong></div>
+      <div className="text-[10px] text-slate-500">Sign in via the Authority Command Portal with official credentials (Passcode: COMMAND-2026).</div>
     </div>
     <button
-      onClick={onSwitchToAuthority}
+      onClick={onReturnToPortal}
       className="px-5 py-2.5 bg-brand-red hover:bg-brand-red/90 text-white rounded-xl text-xs font-mono font-bold tracking-wide transition-all shadow-lg shadow-brand-red/20 flex items-center justify-center gap-2 mx-auto"
     >
       <LogIn className="w-4 h-4" />
-      <span>Switch to Authority Portal</span>
+      <span>Sign In with Authority Account</span>
     </button>
   </div>
 );
 
 const MainApp: React.FC = () => {
-  const { user, isAuthenticated, isAnonymous, isLoading, quickLogin, logout } = useAuth();
+  const { user, isAuthenticated, isAnonymous, isLoading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('incidents');
   const [selectedIncidentForDetail, setSelectedIncidentForDetail] = useState<Incident | null>(null);
   const [authorityViewMode, setAuthorityViewMode] = useState<'public' | 'command'>('command');
@@ -144,7 +144,7 @@ const MainApp: React.FC = () => {
           isVolunteer ? (
             <VolunteerDashboard onSelectIncidentDetail={handleSelectIncidentDetail} />
           ) : (
-            <AccessDeniedCard requiredRole="volunteer" onSwitchToAuthority={() => quickLogin('volunteer')} />
+            <AccessDeniedCard requiredRole="volunteer" onReturnToPortal={logout} />
           )
         )}
 
@@ -171,7 +171,7 @@ const MainApp: React.FC = () => {
           (isAuthority || isResourceManager) ? (
             <ResourcesAndShelters />
           ) : (
-            <AccessDeniedCard requiredRole="authority or resource_manager" onSwitchToAuthority={() => quickLogin('authority')} />
+            <AccessDeniedCard requiredRole="authority or resource_manager" onReturnToPortal={logout} />
           )
         )}
 
@@ -180,17 +180,21 @@ const MainApp: React.FC = () => {
         )}
 
         {activeTab === 'disaster-detail' && (
-          <DisasterDetails
-            incident={selectedIncidentForDetail}
-            onBack={() => setActiveTab('incidents')}
-          />
+          isAuthority ? (
+            <DisasterDetails
+              incident={selectedIncidentForDetail}
+              onBack={() => setActiveTab('incidents')}
+            />
+          ) : (
+            <AccessDeniedCard requiredRole="authority" onReturnToPortal={logout} />
+          )
         )}
 
         {activeTab === 'admin' && (
           isAuthority ? (
             <AdminDashboard />
           ) : (
-            <AccessDeniedCard requiredRole="authority" onSwitchToAuthority={() => quickLogin('authority')} />
+            <AccessDeniedCard requiredRole="authority" onReturnToPortal={logout} />
           )
         )}
 

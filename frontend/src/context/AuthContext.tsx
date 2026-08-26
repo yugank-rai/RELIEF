@@ -25,7 +25,7 @@ interface AuthContextType {
     authorityPasscode?: string;
     skills?: string[];
   }) => Promise<void>;
-  quickLogin: (role: UserRole) => Promise<void>;
+  quickLogin: (role: UserRole, authorityPasscode?: string) => Promise<void>;
   enableAnonymousMode: () => void;
   logout: () => void;
 }
@@ -95,9 +95,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('relief_token', res.token);
   };
 
-  const quickLogin = async (role: UserRole) => {
+  const quickLogin = async (role: UserRole, authorityPasscode?: string) => {
     try {
-      const res = await api.auth.quickLogin(role);
+      const res = await api.auth.quickLogin(role, authorityPasscode);
       setToken(res.token);
       setUser(res.user);
       setIsAnonymous(false);

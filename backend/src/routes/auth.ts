@@ -135,9 +135,20 @@ router.post('/google', async (req: Request, res: Response) => {
   });
 });
 
-// 4. Quick-login for demo role switching
+// 4. Quick-login for demo role switching (Guarded)
 router.post('/quick-login', (req: Request, res: Response) => {
-  const role = (req.body.role || 'authority').toLowerCase();
+  const role = (req.body.role || 'citizen').toLowerCase();
+  const { authorityPasscode } = req.body;
+
+  // STRICT ENFORCEMENT: Escalating to authority or resource_manager requires the verified authority passcode
+  if (role === 'authority' || role === 'resource_manager') {
+    if (!authorityPasscode || authorityPasscode.trim() !== AUTHORITY_ACCESS_PASSCODE) {
+      return res.status(403).json({ 
+        error: 'Access Denied: Elevating to Authority Command requires official security passcode (COMMAND-2026).' 
+      });
+    }
+  }
+
   const user = memoryStore.users.find(u => u.role === role) || memoryStore.users[0];
 
   if (!user) {
